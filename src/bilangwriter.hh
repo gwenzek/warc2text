@@ -3,6 +3,7 @@
 
 #include <unordered_map>
 #include <unordered_set>
+#include "lang.hh"
 #include "record.hh"
 #include "zlib.h"
 
@@ -22,6 +23,7 @@ namespace warc2text {
             void open(const std::string& filename);
             void write(const char* text, std::size_t size);
             void writeLine(const char* text, std::size_t size);
+            void write(const std::string& text);
             void writeLine(const std::string& text);
             bool is_open();
             static const std::size_t BUFFER_SIZE = 4096;
@@ -30,6 +32,7 @@ namespace warc2text {
     class BilangWriter {
         private:
             std::string folder;
+            GzipWriter tsv_writer;
             std::unordered_map<std::string, GzipWriter> url_files;
             std::unordered_map<std::string, GzipWriter> mime_files;
             std::unordered_map<std::string, GzipWriter> text_files;
@@ -41,6 +44,7 @@ namespace warc2text {
         public:
             explicit BilangWriter(const std::string& folder) :
                 folder(folder),
+                tsv_writer(),
                 url_files(),
                 mime_files(),
                 text_files(),
@@ -50,6 +54,7 @@ namespace warc2text {
 
             explicit BilangWriter(const std::string& folder, const std::unordered_set<std::string>& output_files) :
                 folder(folder),
+                tsv_writer(),
                 url_files(),
                 mime_files(),
                 text_files(),
@@ -58,7 +63,7 @@ namespace warc2text {
             {};
 
             void write(const Record& record, bool multilang = false, bool paragraph_identification = false);
-
+            void write_tsv(const Record& record);
     };
 
 

@@ -11,7 +11,7 @@ namespace warc2text {
     WARCPreprocessor::WARCPreprocessor(const std::string& outputFolder, const std::unordered_set<std::string>& output_files,
                                        const std::string& pdf_warc_filename, const std::string& tagFiltersFile, bool invert,
                                        const std::string& urlFiltersFile, bool multilang, bool encodeURLs,
-                                       bool paragraph_identification) :
+                                       bool paragraph_identification, bool tsv_output) :
         writer(outputFolder, output_files),
         totalRecords(0),
         textRecords(0),
@@ -24,7 +24,8 @@ namespace warc2text {
         invert(invert),
         multilang(multilang),
         encodeURLs(encodeURLs),
-        paragraph_identification(paragraph_identification) {
+        paragraph_identification(paragraph_identification),
+        tsv_output(tsv_output) {
             if (!tagFiltersFile.empty())
                 util::readTagFiltersRegex(tagFiltersFile, tagFilters);
 
@@ -63,6 +64,8 @@ namespace warc2text {
 
         while (!done) {
             done = !reader.getRecord(content);
+            ++totalRecords;
+
             if (done or content.empty())
                 continue;
 
@@ -107,7 +110,6 @@ namespace warc2text {
 
             BOOST_LOG_TRIVIAL(trace) << "Processing HTML document " << record.getURL() << "\n";
 
-            ++totalRecords;
             totalBytes += record.getPayload().size();
 
             int clean_retval;
@@ -146,21 +148,24 @@ namespace warc2text {
             ++textRecords;
             textBytes += record.getPlainText().size();
 
-            n_langs = record.detectLanguage(multilang);
-            if (n_langs == 1) {
-                langBytes += record.getPlainText().size();
-            } else if (n_langs > 1) {
-                BOOST_LOG_TRIVIAL(trace) << "Record " << record.getURL() << ": multiple (" << n_langs << ") languages detected";
-                for (auto it : record.getTextByLangs())
-                    langBytes += it.second.size();
+            if (!tsv_output) {
+                n_langs = record.detectLanguage(multilang);
+                if (n_langs == 1) {
+                    langBytes += record.getPlainText().size();
+                } else if (n_langs > 1) {
+                    BOOST_LOG_TRIVIAL(trace) << "Record " << record.getURL() << ": multiple (" << n_langs << ") languages detected";
+                    for (auto it : record.getTextByLangs())
+                        langBytes += it.second.size();
+                } else {
+                    BOOST_LOG_TRIVIAL(trace) << "Record " << record.getURL() << ": language not detected";
+                    continue;
+                }
+
+                langRecords += n_langs;
             } else {
-                BOOST_LOG_TRIVIAL(trace) << "Record " << record.getURL() << ": language not detected";
-                continue;
+                writer.write_tsv(record);
             }
 
-            langRecords += n_langs;
-
-            writer.write(record, multilang, paragraph_identification);
         }
         pdf_warc_writer.close();
     }

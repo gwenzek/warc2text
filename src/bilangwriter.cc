@@ -61,6 +61,10 @@ namespace warc2text{
         this->compress("\n", 1, Z_NO_FLUSH);
     }
 
+    void GzipWriter::write(const std::string& text) {
+        this->compress(text.c_str(), text.size(), Z_NO_FLUSH);
+    }
+
     void GzipWriter::writeLine(const std::string& text) {
         this->compress(text.c_str(), text.size(), Z_NO_FLUSH);
         this->compress("\n", 1, Z_NO_FLUSH);
@@ -142,6 +146,28 @@ namespace warc2text{
 
             this->write(record.getLanguage(), base64text, record.getURL(), record.getHTTPcontentType(), base64html);
         }
+    }
+
+    void BilangWriter::write_tsv(const Record& record) {
+        if (!tsv_writer.is_open()) {
+            tsv_writer.open(folder);
+        }
+
+        std::string payload = record.getPlainText();
+        std::string base64text;
+        util::encodeBase64(payload, base64text);
+        std::string language;
+        warc2text::detectLanguage(payload, language);
+
+        tsv_writer.write(language);
+        tsv_writer.write("\t");
+        tsv_writer.write(record.getHeaderProperty("WARC-Date"));
+        tsv_writer.write("\t");
+        tsv_writer.write(record.getHeaderProperty("WARC-Block-Digest"));
+        tsv_writer.write("\t");
+        tsv_writer.write(record.getURL());
+        tsv_writer.write("\t");
+        tsv_writer.writeLine(base64text);
     }
 
 }
